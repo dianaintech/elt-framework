@@ -18,7 +18,6 @@ jobs:
             connection-string: ${{secrets.CONTROLDB_CONNECTIONSTRING}}
             path: ${{github.workspace}}\elt-framework\ControlDB\ControlDB.sqlproj
             action: 'Publish'
-            enable-firewall-rule: false
             arguments: >
               /p:DropPermissionsNotInSource=false
               /p:BlockOnPossibleDataLoss=false
