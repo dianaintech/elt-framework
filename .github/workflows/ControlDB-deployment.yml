@@ -1,32 +1,42 @@
 name: ControlDB Deployment
-on: workflow_dispatch 
+on: workflow_dispatch
+
 jobs:
-    release:      
-      runs-on: windows-latest
-      steps:
-        - name: Checkout code 
-          uses: actions/checkout@v3
-        - name: Display checkout files and folders
-          run: Get-ChildItem ${{github.workspace}} -Recurse
-        - name: Azure Login
-          uses: Azure/login@v1
-          with:
-           creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
-        - name: Build and Deploy SQL Database
-          uses: Azure/sql-action@v2
-          with:
-            connection-string: ${{secrets.CONTROLDB_CONNECTIONSTRING}}
-            path: ${{github.workspace}}\elt-framework\ControlDB\ControlDB.sqlproj
-            action: 'Publish'
-            arguments: >
-              /p:DropPermissionsNotInSource=false
-              /p:BlockOnPossibleDataLoss=false
-              /p:DropRoleMembersNotInSource=false
-              /p:DropObjectsNotInSource=false
-              /p:IgnoreColumnOrder=true
-              /p:IgnorePermissions=true
-              /p:AllowIncompatiblePlatform=true
-              /p:ExcludeObjectTypes=Logins;Users
-        - name: Azure Logout
-          run: |
-            az logout
+  release:
+    runs-on: windows-latest
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Display files for debugging (optional)
+      - name: Display checkout files and folders
+        run: Get-ChildItem ${{ github.workspace }} -Recurse
+
+      # 3️⃣ Setup .NET SDK
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'  # Use latest supported version
+
+      # 4️⃣ Build ControlDB project
+      - name: Build ControlDB
+        run: dotnet build elt-framework/ControlDB/ControlDB.sqlproj
+
+      # 5️⃣ Deploy ControlDB to Fabric SQL
+      - name: Publish ControlDB to Fabric SQL
+        run: |
+          dotnet publish elt-framework/ControlDB/ControlDB.sqlproj `
+            /p:TargetConnectionString="${{ secrets.CONTROLDB_CONNECTIONSTRING }}" `
+            /p:DropPermissionsNotInSource=false `
+            /p:BlockOnPossibleDataLoss=false `
+            /p:DropRoleMembersNotInSource=false `
+            /p:DropObjectsNotInSource=false `
+            /p:IgnoreColumnOrder=true `
+            /p:IgnorePermissions=true `
+            /p:AllowIncompatiblePlatform=true `
+            /p:ExcludeObjectTypes=Logins;Users
+
+      # 6️⃣ Optional: Azure logout (if Azure login was used elsewhere)
+      - name: Azure Logout
+        run: az logout || true
